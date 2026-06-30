@@ -77,8 +77,21 @@ fig.add_trace(
 )
 fig.update_layout(
     polar=dict(
-        radialaxis=dict(visible=True, range=[0, 20], tickvals=[0, 5, 10, 15, 20])
+        bgcolor="white",
+        radialaxis=dict(
+            visible=True,
+            range=[0, 20],
+            tickvals=[0, 5, 10, 15, 20],
+            gridcolor="#e0e0e0",
+            linecolor="#e0e0e0",
+        ),
+        angularaxis=dict(
+            gridcolor="#e0e0e0",
+            linecolor="#e0e0e0",
+        ),
     ),
+    paper_bgcolor="white",
+    plot_bgcolor="white",
     showlegend=False,
     margin=dict(t=20, b=20, l=40, r=40),
 )
