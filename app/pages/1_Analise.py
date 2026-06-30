@@ -99,7 +99,9 @@ st.subheader("Recomendações NVIDIA")
 _PRIO_COLORS = {
     "alta": "#c62828",
     "media": "#ef6c00",
+    "média": "#ef6c00",
     "baixa": "#1565c0",
+    "baixo": "#1565c0",
 }
 
 recomendacoes = state.get("recommendations") or []
