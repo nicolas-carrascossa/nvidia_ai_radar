@@ -58,6 +58,9 @@ else:
 
 with col_titulo:
     st.title(nome)
+    url_origem = startup_data.get("url_origem") or startup_data.get("site")
+    if url_origem:
+        st.caption(f"🔗 Fonte: [{url_origem}]({url_origem})")
 
 with col_voltar:
     st.write("")
