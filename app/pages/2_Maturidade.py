@@ -16,6 +16,9 @@ if "ultimo_state" not in st.session_state:
 state = st.session_state["ultimo_state"]
 nome = (state.get("startup_data") or {}).get("nome", "—")
 
+startup_data = state.get("startup_data") or {}
+score_salvo = startup_data.get("score_maturidade")
+
 # --- Mapeamento de dimensões e tags ---
 _DIMENSOES = {
     "Dados": ["alto_volume_dados_tabulares"],
@@ -25,20 +28,24 @@ _DIMENSOES = {
     "Produto": ["ausencia_adocao_ia", "voz_call_center_transcricao"],
 }
 
-# --- Extrair tags dos gaps (sem contexto_geral) ---
+# --- gaps_por_dimensao: sempre necessário para a tabela de detalhamento ---
 gaps_raw = state.get("gaps_identified") or []
 tags_presentes = {g.get("tag") for g in gaps_raw if g.get("tag") != "contexto_geral"}
 
-# --- Calcular scores por dimensão ---
-scores = {}
 gaps_por_dimensao = {}
 for dimensao, tags_risco in _DIMENSOES.items():
-    tags_encontradas = [t for t in tags_risco if t in tags_presentes]
-    score = max(0, 20 - len(tags_encontradas) * 10)
-    scores[dimensao] = score
-    gaps_por_dimensao[dimensao] = tags_encontradas
+    gaps_por_dimensao[dimensao] = [t for t in tags_risco if t in tags_presentes]
 
-score_total = sum(scores.values())
+# --- Scores: usar salvo se disponível, senão calcular ---
+if score_salvo is not None:
+    scores = {k: v for k, v in score_salvo.items() if k != "total"}
+    score_total = score_salvo.get("total", sum(scores.values()))
+else:
+    scores = {}
+    for dimensao, tags_risco in _DIMENSOES.items():
+        tags_encontradas = gaps_por_dimensao[dimensao]
+        scores[dimensao] = max(0, 20 - len(tags_encontradas) * 10)
+    score_total = sum(scores.values())
 
 # ── Cabeçalho ─────────────────────────────────────────────────────────────────
 st.title("Score de Maturidade")

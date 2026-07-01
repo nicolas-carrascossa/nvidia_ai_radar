@@ -1,12 +1,35 @@
 import os
 import sys
+from datetime import datetime
 
 import streamlit as st
+from supabase import create_client
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from agents.run import run_pipeline
+from config.settings import settings
 
 st.set_page_config(page_title="Análise de Startup", layout="wide")
+
+# --- Score de Maturidade ---
+_DIMENSOES = {
+    "Dados": ["alto_volume_dados_tabulares"],
+    "Modelos": ["depende_api_externa_atendimento", "latencia_de_inferencia"],
+    "Infraestrutura": ["latencia_de_inferencia", "robotica_ou_simulacao"],
+    "Governança": ["governanca_agentes_ia", "atua_em_saude"],
+    "Produto": ["ausencia_adocao_ia", "voz_call_center_transcricao"],
+}
+
+
+def calcular_score(gaps_identified):
+    tags = {g.get("tag") for g in (gaps_identified or []) if g.get("tag") != "contexto_geral"}
+    scores = {}
+    for dimensao, tags_risco in _DIMENSOES.items():
+        encontradas = [t for t in tags_risco if t in tags]
+        scores[dimensao] = max(0, 20 - len(encontradas) * 10)
+    scores["total"] = sum(scores.values())
+    return scores
+
 
 # --- Guard ---
 if "startup_selecionada" not in st.session_state:
@@ -15,28 +38,81 @@ if "startup_selecionada" not in st.session_state:
 
 nome = st.session_state["startup_selecionada"]
 
+# --- Buscar no Supabase ---
+client = create_client(settings.supabase_url, settings.supabase_service_role_key)
+result = client.table("startups").select("*").eq("nome", nome).execute()
+startup_data = result.data[0] if result.data else None
+
+if startup_data is None:
+    st.error("Startup não encontrada.")
+    st.stop()
+
+ja_analisada = startup_data.get("analysis_status") == "analisada"
+
 # --- Cabeçalho ---
-col_titulo, col_voltar = st.columns([6, 1])
+if ja_analisada:
+    col_titulo, col_reanalisar, col_voltar = st.columns([5, 1, 1])
+else:
+    col_titulo, col_voltar = st.columns([6, 1])
+    col_reanalisar = None
+
 with col_titulo:
     st.title(nome)
+
 with col_voltar:
-    st.write("")  # alinha verticalmente com o título
+    st.write("")
     if st.button("← Voltar"):
         del st.session_state["startup_selecionada"]
         st.switch_page("Home.py")
 
-# --- Pipeline ---
-if "ultimo_state" not in st.session_state or st.session_state.get("_analise_nome") != nome:
-    try:
-        with st.spinner("⚙️ Analisando startup... (isso pode levar até 1 minuto)"):
+if ja_analisada and col_reanalisar is not None:
+    with col_reanalisar:
+        st.write("")
+        if st.button("🔄 Re-analisar"):
+            with st.spinner("⚙️ Re-analisando... (até 1 minuto)"):
+                state = run_pipeline(nome)
+            score = calcular_score(state.get("gaps_identified"))
+            client.table("startups").update({
+                "classification": state.get("classification"),
+                "classification_confidence": state.get("classification_confidence"),
+                "gaps_identified": state.get("gaps_identified"),
+                "recommendations": state.get("recommendations"),
+                "briefing": state.get("briefing"),
+                "score_maturidade": score,
+                "analysis_status": "analisada",
+                "analyzed_at": datetime.utcnow().isoformat(),
+            }).eq("nome", nome).execute()
+            st.session_state["ultimo_state"] = state
+            st.session_state["_analise_nome"] = nome
+            st.rerun()
+
+# --- Obter state ---
+if ja_analisada:
+    if "ultimo_state" not in st.session_state or st.session_state.get("_analise_nome") != nome:
+        state = {
+            "startup_data": startup_data,
+            "classification": startup_data.get("classification"),
+            "classification_confidence": startup_data.get("classification_confidence"),
+            "gaps_identified": startup_data.get("gaps_identified"),
+            "recommendations": startup_data.get("recommendations"),
+            "briefing": startup_data.get("briefing"),
+            "errors": [],
+            "evidence_validator_verdict": None,
+            "classification_reasoning": None,
+        }
+        st.session_state["ultimo_state"] = state
+        st.session_state["_analise_nome"] = nome
+    else:
+        state = st.session_state["ultimo_state"]
+else:
+    st.info("Esta startup ainda não foi analisada pelo batch.")
+    if st.button("▶️ Analisar agora"):
+        with st.spinner("⚙️ Analisando... (até 1 minuto)"):
             state = run_pipeline(nome)
         st.session_state["ultimo_state"] = state
         st.session_state["_analise_nome"] = nome
-    except Exception as e:
-        st.error(f"Erro ao executar o pipeline: {e}")
+    else:
         st.stop()
-else:
-    state = st.session_state["ultimo_state"]
 
 # --- Erros não-fatais ---
 erros = state.get("errors") or []
