@@ -91,18 +91,21 @@ fig.update_layout(
             tickvals=[0, 5, 10, 15, 20],
             gridcolor="#e0e0e0",
             linecolor="#e0e0e0",
+            tickfont=dict(size=10),
         ),
         angularaxis=dict(
             gridcolor="#e0e0e0",
             linecolor="#e0e0e0",
+            tickfont=dict(size=12),
         ),
     ),
     paper_bgcolor="white",
     plot_bgcolor="white",
     showlegend=False,
-    margin=dict(t=20, b=20, l=40, r=40),
+    margin=dict(t=80, b=80, l=80, r=80),
+    height=450,
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
 st.divider()
 

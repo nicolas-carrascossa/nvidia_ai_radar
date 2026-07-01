@@ -9,8 +9,28 @@ from config.settings import settings
 
 st.set_page_config(page_title="NVIDIA Startup AI Radar", layout="wide")
 
-st.title("NVIDIA Startup AI Radar")
-st.caption("Descubra e analise startups brasileiras de IA com tecnologias NVIDIA.")
+st.markdown("""
+<div style='
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+    border-left: 5px solid #76b900;
+    border-radius: 8px;
+    padding: 28px 32px;
+    margin-bottom: 24px;
+'>
+    <div style='color:#76b900;font-size:11px;font-weight:700;
+                letter-spacing:3px;text-transform:uppercase;
+                margin-bottom:8px'>
+        NVIDIA Inception Program
+    </div>
+    <div style='color:white;font-size:32px;font-weight:800;
+                line-height:1.2;margin-bottom:8px'>
+        Startup AI Radar
+    </div>
+    <div style='color:#aaaaaa;font-size:14px'>
+        Mapeamento de startups brasileiras AI-native para o time de Startups & VCs
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # --- Conexão e busca ---
 try:
@@ -62,8 +82,17 @@ if filtro_classification:
 if filtro_analysis:
     filtradas = [s for s in filtradas if s.get("analysis_status") in filtro_analysis]
 
-# --- Métrica ---
-st.metric("Startups encontradas", len(filtradas))
+# --- Métricas ---
+analisadas = len([s for s in filtradas if s.get("analysis_status") == "analisada"])
+ai_native = len([s for s in filtradas if s.get("classification") == "AI-native"])
+ai_enabled = len([s for s in filtradas if s.get("classification") == "AI-enabled"])
+
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Total", len(filtradas))
+col2.metric("Analisadas", analisadas)
+col3.metric("AI-native", ai_native)
+col4.metric("AI-enabled", ai_enabled)
+
 st.divider()
 
 # --- Grade de cards ---
